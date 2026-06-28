@@ -12,7 +12,7 @@ st.info("💡 **Petunjuk:** Silakan upload 4 file peta sekaligus (.shp, .shx, .d
 
 file_diunggah = st.file_uploader(
     "Pilih & Upload file .shp, .shx, .dbf, dan .prj bersamaan:",
-    type=["shp", "shx", "dbf", "prj"],
+    type=["shp", "shx", "dbf", "prj", "cpg", "xml", "sbn", "sbx"],
     accept_multiple_files=True
 )
 
