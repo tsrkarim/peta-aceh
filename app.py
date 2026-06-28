@@ -37,15 +37,17 @@ if file_diunggah and len(file_diunggah) >= 4:
                     pilihan_tema = st.sidebar.selectbox("Pilih Tema Warna:", options=["YlOrRd", "viridis", "plasma", "magma", "coolwarm"])
 
                     fig, ax = plt.subplots(figsize=(10, 6), clear=True)
+                    
+                    # BAGIAN INI SUDAH DIPERBAIKI (LEBIH SIMPEL & BEBAS ERROR)
                     gdf.plot(
                         column=pilihan_kolom,
                         cmap=pilihan_tema,
                         legend=True,
-                        legend_kwds={'title': f"Skala: {pilihan_kolom}", 'orientation': "horizontal"},
                         ax=ax,
                         edgecolor="black",
                         linewidth=0.5
                     )
+                    
                     ax.set_title(f"Visualisasi Spasial: {pilihan_kolom}", fontsize=14, weight='bold')
                     ax.grid(True, linestyle="--", alpha=0.3)
 
