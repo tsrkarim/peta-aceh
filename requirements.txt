@@ -1,3 +1,5 @@
 streamlit
 geopandas
 matplotlib
+folium
+streamlit-folium
