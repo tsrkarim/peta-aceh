@@ -3,8 +3,6 @@ import geopandas as gpd
 import matplotlib.pyplot as plt
 import os
 import tempfile
-from streamlit_folium import st_folium
-import folium
 
 st.set_page_config(page_title="Web SIG Aceh Online", layout="wide")
 
@@ -32,56 +30,39 @@ if file_diunggah and len(file_diunggah) >= 4:
             with st.spinner("Sedang membaca data spasial..."):
                 try:
                     gdf = gpd.read_file(jalur_shp)
-                    if gdf.crs is None:
-                        gdf.set_crs(epsg=4326, inplace=True)
-                    elif gdf.crs.to_string() != "EPSG:4326":
-                        gdf = gdf.to_crs(epsg=4326)
-
+                    
                     kolom_atribut = [col for col in gdf.columns if col != "geometry"]
 
+                    # SIDEBAR PENGATURAN
                     st.sidebar.header("⚙️ Pengaturan Peta")
                     pilihan_kolom = st.sidebar.selectbox("Pilih Kolom Data Atribut:", options=kolom_atribut)
-                    pilihan_tema = st.sidebar.selectbox("Pilih Tema Warna Peta Statis:", options=["YlOrRd", "viridis", "plasma", "magma", "coolwarm"])
+                    pilihan_tema = st.sidebar.selectbox("Pilih Tema Warna Peta:", options=["YlOrRd", "viridis", "plasma", "magma", "coolwarm"])
                     
                     st.sidebar.markdown("---")
-                    st.sidebar.header("🔍 Fitur Pencarian Dinamis")
+                    st.sidebar.header("🔍 Fitur Filter Pencarian")
                     
-                    # Cek kolom nama desa yang tersedia
+                    # Deteksi kolom nama desa yang tersedia
                     kolom_desa = "DESA_KEL_1" if "DESA_KEL_1" in gdf.columns else ("DESA" if "DESA" in gdf.columns else None)
                     
                     cari_desa = ""
                     if kolom_desa:
-                        cari_desa = st.sidebar.text_input("Ketik Nama Desa untuk Peta Interaktif:")
+                        cari_desa = st.sidebar.text_input("Cari Nama Desa/Kelurahan:")
                     
-                    # Filter data jika ada pencarian
+                    # Proses Filter Data
                     gdf_terfilter = gdf.copy()
                     if cari_desa:
                         gdf_terfilter = gdf[gdf[kolom_desa].str.contains(cari_desa, case=False, na=False)]
                         st.sidebar.success(f"Ditemukan {len(gdf_terfilter)} data cocok!")
 
-                    tab1, tab2, tab3 = st.tabs(["🗺️ Peta Interaktif Web", "📊 Peta Statis Global", "📋 Tabel Data Atribut"])
+                    # MEMBAGIAN MENU MENJADI TAB YANG RAPI & RINGAN
+                    tab1, tab2 = st.tabs(["📊 Visualisasi Peta Spasial", "📋 Tabel Atribut & Statistik"])
 
                     with tab1:
-                        st.subheader("Peta Interaktif (Mode Cepat)")
-                        m = folium.Map(location=[4.1755, 96.8103], zoom_start=8, tiles="OpenStreetMap")
-                        
-                        if cari_desa and not gdf_terfilter.empty:
-                            popup_fields = [pilihan_kolom, kolom_desa]
-                            folium.GeoJson(
-                                gdf_terfilter,
-                                name="Hasil Pencarian Desa",
-                                popup=folium.GeoJsonPopup(fields=popup_fields, aliases=[f"Nilai ({pilihan_kolom}):", "Nama Desa:"])
-                            ).add_to(m)
-                            st.caption(f"Menampilkan hasil pencarian untuk desa: **{cari_desa}**")
-                        else:
-                            st.warning("💡 **Tips Ujian:** Peta interaktif sengaja dikosongkan agar loading instan. Silakan ketik nama desa pada menu **Fitur Pencarian Dinamis** di sebelah kiri untuk memunculkan wilayah desanya secara interaktif!")
-                        
-                        st_folium(m, width="100%", height=450)
-
-                    with tab2:
-                        st.subheader("Peta Poligon Statis Keseluruhan Wilayah")
+                        st.subheader("Peta Poligon Spasial Provinsi Aceh")
                         fig, ax = plt.subplots(figsize=(10, 6), clear=True)
-                        gdf.plot(
+                        
+                        # Gambar peta utama
+                        gdf_terfilter.plot(
                             column=pilihan_kolom,
                             cmap=pilihan_tema,
                             legend=True,
@@ -90,12 +71,30 @@ if file_diunggah and len(file_diunggah) >= 4:
                             linewidth=0.2
                         )
                         ax.grid(True, linestyle="--", alpha=0.3)
+                        ax.set_title(f"Visualisasi Atribut: {pilihan_kolom}", fontsize=12)
                         st.pyplot(fig)
 
-                    with tab3:
-                        st.subheader("Tabel Basis Data (Database Attribute)")
-                        st.write(f"Total Database: {len(gdf_terfilter)} Baris Data")
-                        st.dataframe(gdf_terfilter.drop(columns="geometry"), height=400)
+                    with tab2:
+                        # FITUR BARU 1: Ringkasan Analisis Statistik Otomatis
+                        st.subheader("📊 Analisis Statistik Atribut Pilihan")
+                        try:
+                            # Jika kolomnya angka, tampilkan statistik deskriptif
+                            if gdf_terfilter[pilihan_kolom].dtype in ['int64', 'float64']:
+                                col1, col2, col3 = st.columns(3)
+                                col1.metric("Nilai Maksimum", f"{gdf_terfilter[pilihan_kolom].max():,}")
+                                col2.metric("Nilai Minimum", f"{gdf_terfilter[pilihan_kolom].min():,}")
+                                col3.metric("Total Data", f"{len(gdf_terfilter):,}")
+                            else:
+                                st.write(f"Kolom **{pilihan_kolom}** berisi data teks/kategori.")
+                        except:
+                            st.write("Gagal memuat analisis statistik untuk kolom ini.")
+
+                        st.markdown("---")
+                        
+                        # FITUR BARU 2: Tabel Interaktif Berdasarkan Filter Search
+                        st.subheader("📋 Basis Data Atribut (Attribute Database Table)")
+                        st.write(f"Menampilkan {len(gdf_terfilter)} baris dari total {len(gdf)} data desa.")
+                        st.dataframe(gdf_terfilter.drop(columns="geometry"), height=350)
 
                 except Exception as e:
                     st.error(f"Terjadi kesalahan saat membaca file: {e}")
