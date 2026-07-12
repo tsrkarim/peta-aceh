@@ -44,41 +44,42 @@ if file_diunggah and len(file_diunggah) >= 4:
                     pilihan_tema = st.sidebar.selectbox("Pilih Tema Warna Peta Statis:", options=["YlOrRd", "viridis", "plasma", "magma", "coolwarm"])
                     
                     st.sidebar.markdown("---")
-                    st.sidebar.header("🔍 Fitur Pencarian")
-                    if "DESA_KEL_1" in gdf.columns:
-                        cari_desa = st.sidebar.text_input("Cari Nama Desa/Kelurahan:")
-                        if cari_desa:
-                            gdf = gdf[gdf["DESA_KEL_1"].str.contains(cari_desa, case=False, na=False)]
-                            st.sidebar.success(f"Ditemukan {len(gdf)} data cocok!")
-                    elif "DESA" in gdf.columns:
-                        cari_desa = st.sidebar.text_input("Cari Nama Desa:")
-                        if cari_desa:
-                            gdf = gdf[gdf["DESA"].str.contains(cari_desa, case=False, na=False)]
-                            st.sidebar.success(f"Ditemukan {len(gdf)} data cocok!")
+                    st.sidebar.header("🔍 Fitur Pencarian Dinamis")
+                    
+                    # Cek kolom nama desa yang tersedia
+                    kolom_desa = "DESA_KEL_1" if "DESA_KEL_1" in gdf.columns else ("DESA" if "DESA" in gdf.columns else None)
+                    
+                    cari_desa = ""
+                    if kolom_desa:
+                        cari_desa = st.sidebar.text_input("Ketik Nama Desa untuk Peta Interaktif:")
+                    
+                    # Filter data jika ada pencarian
+                    gdf_terfilter = gdf.copy()
+                    if cari_desa:
+                        gdf_terfilter = gdf[gdf[kolom_desa].str.contains(cari_desa, case=False, na=False)]
+                        st.sidebar.success(f"Ditemukan {len(gdf_terfilter)} data cocok!")
 
-                    # --- BAGIAN PEMBAGIAN TAB (SUDAH RAPI & SEJAJAR) ---
-                    tab1, tab2, tab3 = st.tabs(["🗺️ Peta Interaktif Web", "📊 Peta Statis", "📋 Tabel Data Atribut"])
+                    tab1, tab2, tab3 = st.tabs(["🗺️ Peta Interaktif Web", "📊 Peta Statis Global", "📋 Tabel Data Atribut"])
 
                     with tab1:
-                        st.subheader("Peta Interaktif (Bisa di-Zoom & Diklik)")
+                        st.subheader("Peta Interaktif (Mode Cepat)")
                         m = folium.Map(location=[4.1755, 96.8103], zoom_start=8, tiles="OpenStreetMap")
                         
-                        popup_fields = [pilihan_kolom]
-                        if "DESA_KEL_1" in gdf.columns: 
-                            popup_fields.append("DESA_KEL_1")
-                        elif "DESA" in gdf.columns: 
-                            popup_fields.append("DESA")
+                        if cari_desa and not gdf_terfilter.empty:
+                            popup_fields = [pilihan_kolom, kolom_desa]
+                            folium.GeoJson(
+                                gdf_terfilter,
+                                name="Hasil Pencarian Desa",
+                                popup=folium.GeoJsonPopup(fields=popup_fields, aliases=[f"Nilai ({pilihan_kolom}):", "Nama Desa:"])
+                            ).add_to(m)
+                            st.caption(f"Menampilkan hasil pencarian untuk desa: **{cari_desa}**")
+                        else:
+                            st.warning("💡 **Tips Ujian:** Peta interaktif sengaja dikosongkan agar loading instan. Silakan ketik nama desa pada menu **Fitur Pencarian Dinamis** di sebelah kiri untuk memunculkan wilayah desanya secara interaktif!")
                         
-                        folium.GeoJson(
-                            gdf,
-                            name="Data Spasial Aceh",
-                            popup=folium.GeoJsonPopup(fields=popup_fields, aliases=[f"Nilai ({pilihan_kolom}):", "Nama Desa:"])
-                        ).add_to(m)
-                        
-                        st_folium(m, width="100%", height=500)
+                        st_folium(m, width="100%", height=450)
 
                     with tab2:
-                        st.subheader("Peta Poligon Statis")
+                        st.subheader("Peta Poligon Statis Keseluruhan Wilayah")
                         fig, ax = plt.subplots(figsize=(10, 6), clear=True)
                         gdf.plot(
                             column=pilihan_kolom,
@@ -93,8 +94,8 @@ if file_diunggah and len(file_diunggah) >= 4:
 
                     with tab3:
                         st.subheader("Tabel Basis Data (Database Attribute)")
-                        st.write(f"Menampilkan: {len(gdf)} Baris Data")
-                        st.dataframe(gdf.drop(columns="geometry"), height=400)
+                        st.write(f"Total Database: {len(gdf_terfilter)} Baris Data")
+                        st.dataframe(gdf_terfilter.drop(columns="geometry"), height=400)
 
                 except Exception as e:
                     st.error(f"Terjadi kesalahan saat membaca file: {e}")
