@@ -56,16 +56,18 @@ if file_diunggah and len(file_diunggah) >= 4:
                             gdf = gdf[gdf["DESA"].str.contains(cari_desa, case=False, na=False)]
                             st.sidebar.success(f"Ditemukan {len(gdf)} data cocok!")
 
+                    # --- BAGIAN PEMBAGIAN TAB (SUDAH RAPI & SEJAJAR) ---
                     tab1, tab2, tab3 = st.tabs(["🗺️ Peta Interaktif Web", "📊 Peta Statis", "📋 Tabel Data Atribut"])
 
                     with tab1:
                         st.subheader("Peta Interaktif (Bisa di-Zoom & Diklik)")
-                        titik_tengah = [4.1755, 96.8103]
-                        m = folium.Map(location=titik_tengah, zoom_start=8, tiles="OpenStreetMap")
+                        m = folium.Map(location=[4.1755, 96.8103], zoom_start=8, tiles="OpenStreetMap")
                         
                         popup_fields = [pilihan_kolom]
-                        if "DESA_KEL_1" in gdf.columns: popup_fields.append("DESA_KEL_1")
-                        elif "DESA" in gdf.columns: popup_fields.append("DESA")
+                        if "DESA_KEL_1" in gdf.columns: 
+                            popup_fields.append("DESA_KEL_1")
+                        elif "DESA" in gdf.columns: 
+                            popup_fields.append("DESA")
                         
                         folium.GeoJson(
                             gdf,
