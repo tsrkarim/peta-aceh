@@ -31,7 +31,6 @@ if file_diunggah and len(file_diunggah) >= 4:
         if jalur_shp:
             with st.spinner("Sedang membaca data spasial..."):
                 try:
-                    # Membaca data dan memastikan sistem koordinat standar (WGS84) untuk peta web
                     gdf = gpd.read_file(jalur_shp)
                     if gdf.crs is None:
                         gdf.set_crs(epsg=4326, inplace=True)
@@ -40,12 +39,10 @@ if file_diunggah and len(file_diunggah) >= 4:
 
                     kolom_atribut = [col for col in gdf.columns if col != "geometry"]
 
-                    # SIDEBAR PENGATURAN
                     st.sidebar.header("⚙️ Pengaturan Peta")
                     pilihan_kolom = st.sidebar.selectbox("Pilih Kolom Data Atribut:", options=kolom_atribut)
                     pilihan_tema = st.sidebar.selectbox("Pilih Tema Warna Peta Statis:", options=["YlOrRd", "viridis", "plasma", "magma", "coolwarm"])
                     
-                    # FITUR BARU: Pencarian Desa
                     st.sidebar.markdown("---")
                     st.sidebar.header("🔍 Fitur Pencarian")
                     if "DESA_KEL_1" in gdf.columns:
@@ -59,16 +56,13 @@ if file_diunggah and len(file_diunggah) >= 4:
                             gdf = gdf[gdf["DESA"].str.contains(cari_desa, case=False, na=False)]
                             st.sidebar.success(f"Ditemukan {len(gdf)} data cocok!")
 
-                    # PEMBAGIAN TAB AGAR RAPI
                     tab1, tab2, tab3 = st.tabs(["🗺️ Peta Interaktif Web", "📊 Peta Statis", "📋 Tabel Data Atribut"])
 
                     with tab1:
                         st.subheader("Peta Interaktif (Bisa di-Zoom & Diklik)")
-                        # Membuat peta folium otomatis di tengah koordinat Aceh
-                        titik_tengah = [gdf.geometry.centroid.y.mean(), gdf.geometry.centroid.x.mean()]
-                        m = folium.Map(location=titik_tengah, zoom_start=9, tiles="OpenStreetMap")
+                        titik_tengah = [4.1755, 96.8103]
+                        m = folium.Map(location=titik_tengah, zoom_start=8, tiles="OpenStreetMap")
                         
-                        # Menambahkan data spasial dengan pop-up otomatis saat diklik
                         popup_fields = [pilihan_kolom]
                         if "DESA_KEL_1" in gdf.columns: popup_fields.append("DESA_KEL_1")
                         elif "DESA" in gdf.columns: popup_fields.append("DESA")
