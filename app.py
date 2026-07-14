@@ -1,104 +1,82 @@
 import streamlit as st
-import geopandas as gpd
-import matplotlib.pyplot as plt
+import pandas as pd
+import folium
+from streamlit_folium import st_folium
 import os
-import tempfile
 
-st.set_page_config(page_title="Web SIG Aceh Online", layout="wide")
+# 1. Pengaturan Halaman Utama
+st.set_page_config(page_title="Praktikum SIG Banda Aceh", layout="wide")
+st.title("Aplikasi Sistem Informasi Geografis (SIG) Kota Banda Aceh")
+st.write("Modul praktikum SIG interaktif menggunakan Python, Streamlit, dan Folium.")
 
-st.title("🗺️ Web SIG Provinsi Aceh (Online via HP)")
-st.write("Aplikasi analisis spasial Shapefile menggunakan Streamlit Cloud.")
-st.info("💡 **Petunjuk:** Silakan upload file peta (.shp, .shx, .dbf, .prj, dll) secara bersamaan pada kotak di bawah ini.")
+# 2. Penyiapan Data Spasial Wilayah Banda Aceh
+# Kode ini dibuat fleksibel: Membaca data_aceh.csv jika ada di folder data, jika belum ada memakai data default.
+nama_file_csv = "data/data_aceh.csv"
 
-file_diunggah = st.file_uploader(
-    "Pilih & Upload file bersamaan:",
-    type=["shp", "shx", "dbf", "prj", "cpg", "xml", "sbn", "sbx"],
-    accept_multiple_files=True
+if os.path.exists(nama_file_csv):
+    df = pd.read_csv(nama_file_csv)
+else:
+    # Data bawaan dari modul jika file CSV belum terdeteksi
+    data_lokasi = {
+        'Nama Tempat': [
+            'Universitas Syiah Kuala (USK)',
+            'Masjid Raya Baiturrahman',
+            'Museum Tsunami Aceh',
+            'RSUD Dr. Zainoel Abidin',
+            'Taman Sari (Bustanus Salatin)',
+            'PLTD Apung (Situs Sejarah)'
+        ],
+        'Latitude': [5.5701, 5.5536, 5.5476, 5.5615, 5.5518, 5.5463],
+        'Longitude': [95.3695, 95.3172, 95.3153, 95.3426, 95.3175, 95.3056],
+        'Kategori': ['Pendidikan', 'Fasilitas Umum', 'Fasilitas Umum', 'Kesehatan', 'Ruang Terbuka', 'Fasilitas Umum']
+    }
+    df = pd.DataFrame(data_lokasi)
+
+# 3. Fitur Sidebar untuk Interaksi Pengguna (Filter Data)
+st.sidebar.header("Panel Kontrol & Filter")
+kategori_pilihan = st.sidebar.multiselect(
+    "Pilih Kategori Objek:",
+    options=df['Kategori'].unique(),
+    default=df['Kategori'].unique()
 )
 
-if file_diunggah and len(file_diunggah) >= 4:
-    with tempfile.TemporaryDirectory() as folder_sementara:
-        jalur_shp = None
-        for file in file_diunggah:
-            jalur_file = os.path.join(folder_sementara, file.name)
-            with open(jalur_file, "wb") as f:
-                f.write(file.getbuffer())
-            if file.name.endswith(".shp"):
-                jalur_shp = jalur_file
+# Memfilter dataframe berdasarkan pilihan di sidebar
+df_filtered = df[df['Kategori'].isin(kategori_pilihan)]
 
-        if jalur_shp:
-            with st.spinner("Sedang membaca data spasial..."):
-                try:
-                    gdf = gpd.read_file(jalur_shp)
-                    
-                    kolom_atribut = [col for col in gdf.columns if col != "geometry"]
+# 4. Membuat Visualisasi Peta Menggunakan Folium
+koordinat_pusat = [df['Latitude'].mean(), df['Longitude'].mean()]
+peta = folium.Map(location=koordinat_pusat, zoom_start=13, control_scale=True)
 
-                    # SIDEBAR PENGATURAN
-                    st.sidebar.header("⚙️ Pengaturan Peta")
-                    pilihan_kolom = st.sidebar.selectbox("Pilih Kolom Data Atribut:", options=kolom_atribut)
-                    pilihan_tema = st.sidebar.selectbox("Pilih Tema Warna Peta:", options=["YlOrRd", "viridis", "plasma", "magma", "coolwarm"])
-                    
-                    st.sidebar.markdown("---")
-                    st.sidebar.header("🔍 Fitur Filter Pencarian")
-                    
-                    # Deteksi kolom nama desa yang tersedia
-                    kolom_desa = "DESA_KEL_1" if "DESA_KEL_1" in gdf.columns else ("DESA" if "DESA" in gdf.columns else None)
-                    
-                    cari_desa = ""
-                    if kolom_desa:
-                        cari_desa = st.sidebar.text_input("Cari Nama Desa/Kelurahan:")
-                    
-                    # Proses Filter Data
-                    gdf_terfilter = gdf.copy()
-                    if cari_desa:
-                        gdf_terfilter = gdf[gdf[kolom_desa].str.contains(cari_desa, case=False, na=False)]
-                        st.sidebar.success(f"Ditemukan {len(gdf_terfilter)} data cocok!")
+# Menambahkan titik (Marker) ke dalam peta
+for index, row in df_filtered.iterrows():
+    warna = 'blue'
+    if row['Kategori'] == 'Pendidikan':
+        warna = 'red'
+    elif row['Kategori'] == 'Kesehatan':
+        warna = 'green'
+    elif row['Kategori'] == 'Ruang Terbuka':
+        warna = 'orange'
+    elif row['Kategori'] == 'Kuliner':
+        warna = 'purple'
+    elif row['Kategori'] == 'Tempat Tinggal':
+        warna = 'cadetblue'
+        
+    folium.Marker(
+        location=[row['Latitude'], row['Longitude']],
+        popup=f"<b>{row['Nama Tempat']}</b><br>Kategori: {row['Kategori']}",
+        tooltip=row['Nama Tempat'],
+        icon=folium.Icon(color=warna, icon='info-sign')
+    ).add_to(peta)
 
-                    # MEMBAGIAN MENU MENJADI TAB YANG RAPI & RINGAN
-                    tab1, tab2 = st.tabs(["📊 Visualisasi Peta Spasial", "📋 Tabel Atribut & Statistik"])
+# 5. Menampilkan Output pada Grid Streamlit (Dua Kolom)
+kolom_peta, kolom_data = st.columns([2, 1])
 
-                    with tab1:
-                        st.subheader("Peta Poligon Spasial Provinsi Aceh")
-                        fig, ax = plt.subplots(figsize=(10, 6), clear=True)
-                        
-                        # Gambar peta utama
-                        gdf_terfilter.plot(
-                            column=pilihan_kolom,
-                            cmap=pilihan_tema,
-                            legend=True,
-                            ax=ax,
-                            edgecolor="black",
-                            linewidth=0.2
-                        )
-                        ax.grid(True, linestyle="--", alpha=0.3)
-                        ax.set_title(f"Visualisasi Atribut: {pilihan_kolom}", fontsize=12)
-                        st.pyplot(fig)
+with kolom_peta:
+    st.subheader("Visualisasi Spasial Interaktif")
+    st_folium(peta, width="100%", height=500)
 
-                    with tab2:
-                        # FITUR BARU 1: Ringkasan Analisis Statistik Otomatis
-                        st.subheader("📊 Analisis Statistik Atribut Pilihan")
-                        try:
-                            # Jika kolomnya angka, tampilkan statistik deskriptif
-                            if gdf_terfilter[pilihan_kolom].dtype in ['int64', 'float64']:
-                                col1, col2, col3 = st.columns(3)
-                                col1.metric("Nilai Maksimum", f"{gdf_terfilter[pilihan_kolom].max():,}")
-                                col2.metric("Nilai Minimum", f"{gdf_terfilter[pilihan_kolom].min():,}")
-                                col3.metric("Total Data", f"{len(gdf_terfilter):,}")
-                            else:
-                                st.write(f"Kolom **{pilihan_kolom}** berisi data teks/kategori.")
-                        except:
-                            st.write("Gagal memuat analisis statistik untuk kolom ini.")
-
-                        st.markdown("---")
-                        
-                        # FITUR BARU 2: Tabel Interaktif Berdasarkan Filter Search
-                        st.subheader("📋 Basis Data Atribut (Attribute Database Table)")
-                        st.write(f"Menampilkan {len(gdf_terfilter)} baris dari total {len(gdf)} data desa.")
-                        st.dataframe(gdf_terfilter.drop(columns="geometry"), height=350)
-
-                except Exception as e:
-                    st.error(f"Terjadi kesalahan saat membaca file: {e}")
-        else:
-            st.error("Pastikan Anda menyertakan file dengan ekstensi `.shp`")
-else:
-    st.warning("⚠️ Mohon upload file peta secara bersamaan agar aplikasi bisa merender visualisasinya.")
+with kolom_data:
+    st.subheader("Atribut Data (Tabular)")
+    st.dataframe(df_filtered, use_container_width=True)
+    st.write(f"Menampilkan **{len(df_filtered)}** dari **{len(df)}** total objek di Banda Aceh.")
+    
