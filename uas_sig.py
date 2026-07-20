@@ -26,8 +26,22 @@ kategori_pilihan = st.sidebar.multiselect(
 
 df_filtered = df[df['Kategori'].isin(kategori_pilihan)]
 
+# Koordinat pusat desa Lampeuneurut
 koordinat_pusat = [5.5150, 95.3130]
 peta = folium.Map(location=koordinat_pusat, zoom_start=16, control_scale=True)
+
+# === TAMBAHAN KODE PEMBATAS WILAYAH DESA ===
+folium.Circle(
+    location=koordinat_pusat,
+    radius=450,  # Radius pembatas dalam meter
+    color='blue',
+    fill=True,
+    fill_color='blue',
+    fill_opacity=0.1,
+    popup='Batas Wilayah Analisis Desa Lampeuneurut',
+    tooltip='Batas Wilayah Desa'
+).add_to(peta)
+# ===========================================
 
 for index, row in df_filtered.iterrows():
     # Warna Merah untuk Sekolah/Pondok, Hijau untuk Rumah Sakit/Kesehatan
@@ -43,7 +57,7 @@ for index, row in df_filtered.iterrows():
 kolom_peta, kolom_data = st.columns([2, 1])
 
 with kolom_peta:
-    st.subheader("Peta Lokasi Fasilitas")
+    st.subheader("Peta Lokasi Fasilitas dengan Pembatas Wilayah")
     st_folium(peta, width="100%", height=550)
 
 with kolom_data:
